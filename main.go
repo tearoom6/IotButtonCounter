@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
@@ -11,16 +12,28 @@ import (
 	"github.com/tearoom6/IotButtonCounter/slack"
 )
 
-func getClickType(clickType string, deviceId string) string {
+const tableName = "IotButtonCounter"
+
+func processCounter(clickType string, deviceId string) int {
+	dynamodb, _ := aws.InitDynamoDbClient()
+	currentCount, _ := dynamodb.GetNumberItem(tableName, deviceId)
+
 	switch clickType {
 	case "SINGLE":
-		return "single"
+		// Return incremented value.
+		newCount := currentCount + 1
+		dynamodb.PutNumberItem(tableName, deviceId, newCount)
+		return newCount
 	case "DOUBLE":
-		return "double"
+		// Not increment, just return current value.
+		return currentCount
 	case "LONG":
-		return "long"
+		// Reset counter.
+		newCount := 0
+		dynamodb.PutNumberItem(tableName, deviceId, newCount)
+		return newCount
 	}
-	return "none"
+	return -1
 }
 
 func sendSlackMessage(webhookUrl string, channel string, text string) {
@@ -43,9 +56,9 @@ func handleRequest(ctx context.Context, event aws.IotEnterpriseButtonEvent) {
 
 	slackWebhookUrl := os.Getenv("SLACK_WEBHOOK_URL")
 	slackChannel := os.Getenv("SLACK_CHANNEL")
-	clickType := getClickType(event.DeviceEvent.ButtonClicked.ClickType, event.DeviceInfo.DeviceId)
+	currentCount := processCounter(event.DeviceEvent.ButtonClicked.ClickType, event.DeviceInfo.DeviceId)
 
-	sendSlackMessage(slackWebhookUrl, slackChannel, clickType)
+	sendSlackMessage(slackWebhookUrl, slackChannel, strconv.Itoa(currentCount))
 }
 
 func main() {

@@ -11,8 +11,36 @@ Parameters:
     Type: String
     Description: Slack Webhook URL
     NoEcho: true
+  DynamoDbTableName:
+    Type: String
+    Default: IotButtonCounter
+    Description: DynamoDB Table Name
 
 Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: IotButtonCounterRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
   IotButtonCounter:
     Type: AWS::Serverless::Function
     Properties:
@@ -21,7 +49,21 @@ Resources:
       CodeUri: build/handler.zip
       Timeout: 60
       MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:
           SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
           SLACK_CHANNEL: !Ref SlackChannel
+  IotButtonCounterTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: !Ref DynamoDbTableName
