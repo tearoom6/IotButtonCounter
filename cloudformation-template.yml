@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda to count up by IoT Button request.
+
+Parameters:
+  SlackChannel:
+    Type: String
+    Default: develop
+    Description: Slack Webhook Destination Channel
+  SlackWebhookUrl:
+    Type: String
+    Description: Slack Webhook URL
+    NoEcho: true
+
+Resources:
+  IotButtonCounter:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: bin/main
+      Runtime: go1.x
+      CodeUri: build/handler.zip
+      Timeout: 60
+      MemorySize: 128
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
+          SLACK_CHANNEL: !Ref SlackChannel
