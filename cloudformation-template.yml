@@ -3,6 +3,22 @@ Transform: AWS::Serverless-2016-10-31
 Description: Lambda to count up by IoT Button request.
 
 Parameters:
+  ProjectName:
+    Type: String
+    Default: IotButtonCounterProject
+    Description: IoT1Click Project Name
+  PlacementName:
+    Type: String
+    Default: IotButtonCounterPlacement
+    Description: IoT1Click Placement Name
+  DeviceDsn:
+    Type: String
+    Description: Device DSN
+    NoEcho: true
+  FunctionName:
+    Type: String
+    Default: IotButtonCounterFunction
+    Description: Lambda Function Name
   SlackChannel:
     Type: String
     Default: develop
@@ -41,9 +57,10 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-  IotButtonCounter:
+  IotButtonCounterFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Ref FunctionName
       Handler: bin/main
       Runtime: go1.x
       CodeUri: build/handler.zip
@@ -54,6 +71,38 @@ Resources:
         Variables:
           SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
           SLACK_CHANNEL: !Ref SlackChannel
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt IotButtonCounterFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: iot1click.amazonaws.com
+  IotButtonCounterProject:
+    Type: AWS::IoT1Click::Project
+    Properties:
+      ProjectName: !Ref ProjectName
+      PlacementTemplate:
+        DefaultAttributes:
+          DeviceNo: 0
+        DeviceTemplates:
+          IotButtonCounterTemplate:
+            DeviceType: button
+            CallbackOverrides:
+              onClickCallback: !GetAtt IotButtonCounterFunction.Arn
+  #IotButtonDevice:
+  #  Type: AWS::IoT1Click::Device
+  #  Properties:
+  #    DeviceId: !Ref DeviceDsn
+  #    Enabled: True
+  IotButtonCounterPlacement:
+    Type: AWS::IoT1Click::Placement
+    Properties:
+      ProjectName: !Ref IotButtonCounterProject
+      PlacementName: !Ref PlacementName
+      Attributes:
+        DeviceNo: 1
+      AssociatedDevices:
+        IotButtonCounterTemplate: !Ref DeviceDsn
   IotButtonCounterTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -67,3 +116,11 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
       TableName: !Ref DynamoDbTableName
+
+Outputs:
+  ProjectId:
+    Value: !Ref IotButtonCounterProject
+  FunctionName:
+    Value: !Ref IotButtonCounterFunction
+  TableName:
+    Value: !Ref IotButtonCounterTable
