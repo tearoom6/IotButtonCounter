@@ -12,9 +12,7 @@ import (
 	"github.com/tearoom6/IotButtonCounter/slack"
 )
 
-const tableName = "IotButtonCounter"
-
-func processCounter(clickType string, deviceId string) int {
+func processCounter(tableName string, clickType string, deviceId string) int {
 	dynamodb, _ := aws.InitDynamoDbClient()
 	currentCount, _ := dynamodb.GetNumberItem(tableName, deviceId)
 
@@ -56,7 +54,8 @@ func handleRequest(ctx context.Context, event aws.IotEnterpriseButtonEvent) {
 
 	slackWebhookUrl := os.Getenv("SLACK_WEBHOOK_URL")
 	slackChannel := os.Getenv("SLACK_CHANNEL")
-	currentCount := processCounter(event.DeviceEvent.ButtonClicked.ClickType, event.DeviceInfo.DeviceId)
+	tableName := os.Getenv("TABLE_NAME")
+	currentCount := processCounter(tableName, event.DeviceEvent.ButtonClicked.ClickType, event.DeviceInfo.DeviceId)
 
 	sendSlackMessage(slackWebhookUrl, slackChannel, strconv.Itoa(currentCount))
 }

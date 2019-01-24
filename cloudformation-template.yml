@@ -71,6 +71,7 @@ Resources:
         Variables:
           SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
           SLACK_CHANNEL: !Ref SlackChannel
+          TABLE_NAME: !Ref DynamoDbTableName
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
